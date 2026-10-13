@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speed test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F8FB; --panel:#FFFFFF; --ink:#0D2438; --muted:#5A6F82; --line:#D7E2EA;
+  --down:#0F6CBD; --up:#138A7C; --ping:#B7791F; --track:#E3ECF2; --btn:#0D2438; --btnink:#FFFFFF;
+  --err:#B42318;
+  --font:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#08141F; --panel:#0E2233; --ink:#E7F0F7; --muted:#8FA6B8; --line:#1D3850;
+    --down:#4BA3E8; --up:#4CC9B8; --ping:#E9B44C; --track:#16303F; --btn:#E7F0F7; --btnink:#08141F; --err:#FF8A7A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#08141F; --panel:#0E2233; --ink:#E7F0F7; --muted:#8FA6B8; --line:#1D3850;
+  --down:#4BA3E8; --up:#4CC9B8; --ping:#E9B44C; --track:#16303F; --btn:#E7F0F7; --btnink:#08141F; --err:#FF8A7A;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.5;
+  padding:calc(24px + env(safe-area-inset-top,0px)) 20px calc(40px + env(safe-area-inset-bottom,0px))}
+main{max-width:860px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.1;margin:0;font-weight:800;letter-spacing:-0.02em}
+.conn{color:var(--muted);font-size:15px;margin:6px 0 0;min-height:1.5em}
+.theme{background:none;border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:6px 14px;font:inherit;font-size:14px;cursor:pointer}
+.theme:hover{border-color:var(--muted)}
+:focus-visible{outline:3px solid var(--down);outline-offset:2px}
+
+.stage{margin:28px auto 0;max-width:520px;position:relative}
+.dial{width:100%;height:auto;display:block;overflow:visible}
+.dial .track{fill:none;stroke:var(--track);stroke-width:18;stroke-linecap:round}
+.dial .fill{fill:none;stroke:var(--phase,var(--down));stroke-width:18;stroke-linecap:round;
+  stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset .25s linear,stroke .3s}
+.dial .tick{fill:var(--muted);font-size:11px;font-family:var(--font);text-anchor:middle;dominant-baseline:middle}
+.dial .phase{fill:var(--muted);font-size:17px;text-anchor:middle;font-family:var(--font)}
+.dial .num{fill:var(--ink);font-size:78px;font-weight:800;text-anchor:middle;font-family:var(--font);letter-spacing:-0.03em;font-variant-numeric:tabular-nums}
+.dial .unit{fill:var(--muted);font-size:17px;text-anchor:middle;font-family:var(--font)}
+@media (prefers-reduced-motion:reduce){.dial .fill{transition:none}}
+
+.go{display:block;margin:-6px auto 0;min-width:180px;padding:14px 32px;border-radius:999px;border:0;background:var(--btn);color:var(--btnink);
+  font:inherit;font-weight:600;font-size:18px;cursor:pointer}
+.go:hover{opacity:.9}
+.status{text-align:center;color:var(--muted);margin:12px 0 0;min-height:1.5em;font-size:15px}
+.status.err{color:var(--err)}
+
+.picker{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:18px}
+.picker label{color:var(--muted);font-size:15px}
+select,input[type=text]{font:inherit;font-size:15px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;max-width:100%}
+input[type=text]{min-width:260px}
+.hidden{display:none!important}
+
+.results{display:grid;grid-template-columns:repeat(4,1fr);margin:34px 0 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.res{padding:16px 14px;border-left:1px solid var(--line)}
+.res:first-child{border-left:0}
+.res dt{font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.res dt i{width:10px;height:10px;border-radius:50%;background:var(--c);display:inline-block}
+.res dd{margin:2px 0 0;font-size:clamp(24px,5vw,34px);font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+.res dd small{font-size:14px;font-weight:400;color:var(--muted);margin-left:4px;letter-spacing:0}
+@media (max-width:600px){
+  .results{grid-template-columns:1fr 1fr}
+  .res:nth-child(3){border-left:0}
+  .res:nth-child(n+3){border-top:1px solid var(--line)}
+}
+
+section{margin-top:36px}
+h2{font-size:20px;margin:0 0 4px;font-weight:600}
+.note{color:var(--muted);font-size:14px;margin:0 0 12px}
+.scroll{overflow-x:auto;max-width:100%}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-weight:600;color:var(--muted);font-size:14px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.best td{font-weight:600}
+tr.best td:first-child::before{content:"✓ ";color:var(--up)}
+.bad{color:var(--err)}
+.link{background:none;border:0;color:var(--muted);font:inherit;font-size:14px;text-decoration:underline;cursor:pointer;padding:0}
+.modewrap{text-align:center;margin-top:20px}
+.mode{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--panel)}
+.mode button{border:0;background:none;color:var(--ink);font:inherit;font-size:15px;padding:7px 18px;border-radius:999px;cursor:pointer}
+.mode button[aria-pressed="true"]{background:var(--btn);color:var(--btnink)}
+.exit{text-align:center;color:var(--muted);font-size:15px;margin:16px 0 0}
+.exit b{color:var(--ink);font-weight:600}
+.exit .warn{color:var(--err)}
+.helper{max-width:580px;margin:14px auto 0;padding:12px 16px;border:1px solid var(--line);border-radius:10px;font-size:14px;color:var(--muted)}
+.helper code{background:var(--track);padding:1px 6px;border-radius:5px;color:var(--ink);font-size:13px}
+footer{margin-top:40px;color:var(--muted);font-size:13px;max-width:70ch}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Speed test</h1>
+      <p class="conn" id="conn">Detecting your connection…</p>
+    </div>
+    <button class="theme" id="themeBtn" type="button">Switch theme</button>
+  </header>
+
+  <div class="stage">
+    <svg class="dial" viewBox="0 0 400 320" role="img" aria-label="Speed gauge" id="dialSvg">
+      <path class="track" pathLength="100" d="M70.1 265 A150 150 0 1 1 329.9 265"/>
+      <path class="fill" id="fill" pathLength="100" d="M70.1 265 A150 150 0 1 1 329.9 265"/>
+      <g id="ticks"></g>
+      <text class="phase" id="phase" x="200" y="150">Ready</text>
+      <text class="num" id="num" x="200" y="225">–</text>
+      <text class="unit" id="unit" x="200" y="252">Mbps</text>
+    </svg>
+  </div>
+
+  <button class="go" id="go" type="button">Start test</button>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+
+  <div class="modewrap">
+    <div class="mode" role="group" aria-label="Test mode">
+      <button type="button" id="modeDirect" aria-pressed="true">Direct</button>
+      <button type="button" id="modeProxy" aria-pressed="false">Through a proxy</button>
+    </div>
+  </div>
+
+  <div class="picker" id="directPicker">
+    <label for="server">Server</label>
+    <select id="server"></select>
+    <input type="text" id="custom" class="hidden" placeholder="https://your-server/backend/" aria-label="Custom LibreSpeed server URL" spellcheck="false">
+  </div>
+
+  <dl class="results" id="results">
+    <div class="res" style="--c:var(--ping)"><dt><i></i>Ping</dt><dd id="rPing">–<small>ms</small></dd></div>
+    <div class="res" style="--c:var(--ping)"><dt><i></i>Jitter</dt><dd id="rJitter">–<small>ms</small></dd></div>
+    <div class="res" style="--c:var(--down)"><dt><i></i>Download</dt><dd id="rDown">–<small>Mbps</small></dd></div>
+    <div class="res" style="--c:var(--up)"><dt><i></i>Upload</dt><dd id="rUp">–<small>Mbps</small></dd></div>
+  </dl>
+
+  <section>
+    <h2>Servers</h2>
+    <p class="note">Latency from your browser. Auto picks the lowest.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Server</th><th>Location</th><th class="n">Latency</th></tr></thead>
+        <tbody id="serverRows"></tbody>
+      </table>
+    </div>
+    <p class="note" style="margin-top:10px"><button class="link" id="pingAll" type="button">Re-check latency</button></p>
+  </section>
+
+  <section>
+    <h2>History</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Time</th><th>Server</th><th class="n">Ping</th><th class="n">Down</th><th class="n">Up</th></tr></thead>
+        <tbody id="hist"></tbody>
+      </table>
+    </div>
+    <p class="note" style="margin-top:10px"><button class="link" id="clearHist" type="button">Clear history</button></p>
+  </section>
+
+  <footer>
+    Results depend on your device, Wi-Fi and the route to the server. For the most accurate reading, use a cable and pause other downloads.
+    The test transfers roughly 100–500 MB depending on your speed.
+  </footer>
+</main>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- Servers ---------- */
+// Cloudflare's speed endpoints are served from the nearest Cloudflare edge,
+// which for Greece is normally the Athens or Thessaloniki point of presence.
+// The LibreSpeed backends are the closest open, browser-testable servers I could list outside Greece.
+const SERVERS = [
+  {id:'cf',  name:'Cloudflare edge',          where:'Nearest to you (Greece)', kind:'cf', base:'https://speed.cloudflare.com/'},
+  {id:'fra', name:'Clouvider Frankfurt',      where:'Frankfurt, Germany',      kind:'ls', base:'https://fra.speedtest.clouvider.net/backend/'},
+  {id:'ams', name:'Clouvider Amsterdam',      where:'Amsterdam, Netherlands',  kind:'ls', base:'https://ams.speedtest.clouvider.net/backend/'},
+  {id:'lon', name:'Clouvider London',         where:'London, UK',              kind:'ls', base:'https://lon.speedtest.clouvider.net/backend/'}
+];
+const rnd = () => Math.random().toString(36).slice(2);
+const pingUrl = s => s.kind==='cf' ? `${s.base}__down?bytes=0&r=${rnd()}` : `${s.base}empty.php?r=${rnd()}`;
+const downUrl = (s,mb) => s.kind==='cf' ? `${s.base}__down?bytes=${mb*1e6}&r=${rnd()}` : `${s.base}garbage.php?ckSize=${mb}&r=${rnd()}`;
+const upUrl   = s => s.kind==='cf' ? `${s.base}__up?r=${rnd()}` : `${s.base}empty.php?r=${rnd()}`;
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const el = {
+  go:$('go'), status:$('status'), fill:$('fill'), num:$('num'), phase:$('phase'), unit:$('unit'),
+  server:$('server'), custom:$('custom'), conn:$('conn'),
+  rPing:$('rPing'), rJitter:$('rJitter'), rDown:$('rDown'), rUp:$('rUp'),
+  rows:$('serverRows'), hist:$('hist')
+};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* ---------- Theme ---------- */
+try{ const t=localStorage.getItem('st-theme'); if(t) document.documentElement.dataset.theme=t; }catch(e){}
+$('themeBtn').onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  const next = cur==='dark'?'light':'dark';
+  document.documentElement.dataset.theme = next;
+  try{ localStorage.setItem('st-theme',next); }catch(e){}
+};
+
+/* ---------- Dial ---------- */
+const MARKS=[0,5,10,25,50,100,250,500,1000];
+const fracOf = v => Math.min(1, Math.log10(1+Math.max(0,v))/Math.log10(1001));
+(function drawTicks(){
+  const g=$('ticks'); let h='';
+  MARKS.forEach(v=>{
+    const a=(150+240*fracOf(v))*Math.PI/180, r=128;
+    h+=`<text class="tick" x="${(200+r*Math.cos(a)).toFixed(1)}" y="${(190+r*Math.sin(a)).toFixed(1)}">${v}</text>`;
+  });
+  g.innerHTML=h;
+})();
+function setDial(v, phaseVar){
+  el.fill.style.strokeDashoffset = String(100*(1-fracOf(v)));
+  if(phaseVar) el.fill.style.setProperty('--phase', `var(${phaseVar})`);
+}
+const fmt = v => v>=100 ? v.toFixed(0) : v>=10 ? v.toFixed(1) : v.toFixed(2);
+
+/* ---------- Helpers ---------- */
+function timeoutCtl(ms,parent){
+  const c=new AbortController();
+  const t=setTimeout(()=>c.abort(),ms);
+  if(parent){ if(parent.aborted) c.abort(); else parent.addEventListener('abort',()=>c.abort(),{once:true}); }
+  c.clear=()=>clearTimeout(t);
+  return c;
+}
+async function pingOnce(s,signal){
+  const t=performance.now();
+  const r=await fetch(pingUrl(s),{cache:'no-store',signal});
+  await r.arrayBuffer();
+  return performance.now()-t;
+}
+async function measurePing(s,count,signal,timeout=6000){
+  const c=timeoutCtl(timeout,signal);
+  try{
+    await pingOnce(s,c.signal);                // warm-up: TLS + connection setup, discarded
+    const a=[];
+    for(let i=0;i<count;i++) a.push(await pingOnce(s,c.signal));
+    const sorted=[...a].sort((x,y)=>x-y);
+    const ping=sorted[Math.floor(sorted.length/2)];
+    let j=0; for(let i=1;i<a.length;i++) j+=Math.abs(a[i]-a[i-1]);
+    return {ping, jitter:a.length>1? j/(a.length-1):0};
+  } finally { c.clear(); }
+}
+
+/* Live meter: samples a byte counter and returns smoothed Mbps */
+function makeMeter(getBytes,onSpeed,warmMs){
+  const t0=performance.now(); let warmBytes=null,warmT=null; const win=[];
+  const id=setInterval(()=>{
+    const now=performance.now(), b=getBytes();
+    win.push([now,b]); while(win.length>1 && now-win[0][0]>1200) win.shift();
+    if(warmBytes===null && now-t0>=warmMs){ warmBytes=b; warmT=now; }
+    const [t1,b1]=win[0];
+    if(now>t1) onSpeed(((b-b1)*8)/((now-t1)/1000)/1e6);
+  },200);
+  return { stop(){ clearInterval(id);
+    const now=performance.now(), b=getBytes();
+    const fromT = warmT ?? t0, fromB = warmBytes ?? 0;
+    return ((b-fromB)*8)/((now-fromT)/1000)/1e6; } };
+}
+
+/* ---------- Download ---------- */
+async function runDownload(s,signal,onSpeed,{duration=10000,streams=4}={}){
+  let bytes=0, firstErr=null;
+  const ctl=new AbortController();
+  signal.addEventListener('abort',()=>ctl.abort(),{once:true});
+  const meter=makeMeter(()=>bytes,onSpeed,1500);
+  const stopT=setTimeout(()=>ctl.abort(),duration);
+  async function worker(){
+    while(!ctl.signal.aborted){
+      try{
+        const r=await fetch(downUrl(s,25),{cache:'no-store',signal:ctl.signal});
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        const rd=r.body.getReader();
+        for(;;){ const {done,value}=await rd.read(); if(done)break; bytes+=value.length; }
+      }catch(e){ if(ctl.signal.aborted) return; firstErr=firstErr||e; return; }
+    }
+  }
+  await Promise.all(Array.from({length:streams},worker));
+  clearTimeout(stopT);
+  const result=meter.stop();
+  if(signal.aborted) throw new DOMException('Stopped','AbortError');
+  if(bytes===0) throw firstErr||new Error('No data received');
+  return result;
+}
+
+/* ---------- Upload ---------- */
+let payload=null;
+function getPayload(){
+  if(payload) return payload;
+  const chunk=new Uint8Array(65536); const parts=[];
+  crypto.getRandomValues(chunk);
+  for(let i=0;i<128;i++) parts.push(chunk);       // 8 MB
+  payload=new Blob(parts,{type:'text/plain'});      // text/plain avoids a CORS preflight on most servers
+  return payload;
+}
+function runUpload(s,signal,onSpeed,{duration=8000,streams=3}={}){
+  return new Promise((resolve,reject)=>{
+    let bytes=0, over=false, firstErr=null, active=0; const xhrs=new Set();
+    const meter=makeMeter(()=>bytes,onSpeed,1500);
+    function finish(){
+      if(over) return; over=true; clearTimeout(stopT);
+      xhrs.forEach(x=>x.abort()); const r=meter.stop();
+      if(signal.aborted) return reject(new DOMException('Stopped','AbortError'));
+      if(bytes===0) return reject(firstErr||new Error('Upload failed'));
+      resolve(r);
+    }
+    function send(){
+      if(over) return;
+      const x=new XMLHttpRequest(); let last=0; xhrs.add(x); active++;
+      x.open('POST',upUrl(s));
+      x.upload.onprogress=e=>{ bytes+=e.loaded-last; last=e.loaded; };
+      x.onload=()=>{ xhrs.delete(x); active--; send(); };
+      x.onerror=()=>{ xhrs.delete(x); active--; firstErr=firstErr||new Error('Upload request failed'); if(active===0) finish(); };
+      x.send(getPayload());
+    }
+    const stopT=setTimeout(finish,duration);
+    signal.addEventListener('abort',finish,{once:true});
+    for(let i=0;i<streams;i++) send();
+  });
+}
+
+/* ---------- Server list UI ---------- */
+const lat={};      // id -> ms | null
+let cfWhere=null;
+function renderServers(bestId){
+  el.rows.innerHTML='';
+  SERVERS.forEach(s=>{
+    const tr=document.createElement('tr'); if(s.id===bestId) tr.className='best';
+    const v=lat[s.id];
+    const where=s.id==='cf'&&cfWhere?cfWhere:s.where;
+    const val = v===undefined ? '–' : v===null ? '<span class="bad">unreachable</span>' : v.toFixed(0)+' ms';
+    tr.innerHTML=`<td>${s.name}</td><td>${where}</td><td class="n">${val}</td>`;
+    el.rows.appendChild(tr);
+  });
+}
+function fillSelect(){
+  el.server.innerHTML='<option value="auto">Auto (lowest latency)</option>'+
+    SERVERS.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')+
+    '<option value="custom">Custom LibreSpeed server…</option>';
+}
+el.server.onchange=()=>el.custom.classList.toggle('hidden',el.server.value!=='custom');
+async function pingAll(signal){
+  await Promise.all(SERVERS.map(async s=>{
+    try{ lat[s.id]=(await measurePing(s,3,signal,6000)).ping; }catch(e){ lat[s.id]=null; }
+  }));
+  const ok=SERVERS.filter(s=>lat[s.id]!=null).sort((a,b)=>lat[a.id]-lat[b.id]);
+  renderServers(ok[0]&&ok[0].id);
+  return ok[0]||null;
+}
+$('pingAll').onclick=()=>{ if(!running){ setStatus('Checking servers…'); pingAll(new AbortController().signal).then(()=>setStatus('')); } };
+
+/* ---------- Connection info ---------- */
+async function loadMeta(){
+  try{
+    const r=await fetch('https://speed.cloudflare.com/meta',{cache:'no-store'});
+    const m=await r.json();
+    const colo=m.colo; const edge = colo && typeof colo==='object' ? (colo.city||colo.iata) : colo;
+    if(edge){ cfWhere=`${edge} (Cloudflare)`; renderServers(); }
+    const parts=[m.asOrganization, m.city && m.country ? `${m.city}, ${m.country}` : m.country, m.clientIp].filter(Boolean);
+    el.conn.textContent=parts.join(' · ')||'Connected';
+  }catch(e){ el.conn.textContent='Connection details unavailable'; }
+}
+
+/* ---------- History ---------- */
+function loadHist(){ try{ return JSON.parse(localStorage.getItem('st-hist')||'[]'); }catch(e){ return []; } }
+function saveHist(a){ try{ localStorage.setItem('st-hist',JSON.stringify(a.slice(0,10))); }catch(e){} }
+function renderHist(){
+  const a=loadHist();
+  el.hist.innerHTML = a.length ? a.map(r=>`<tr><td>${new Date(r.t).toLocaleString()}</td><td>${r.s}</td><td class="n">${r.p.toFixed(0)} ms</td><td class="n">${fmt(r.d)} Mbps</td><td class="n">${fmt(r.u)} Mbps</td></tr>`).join('')
+    : '<tr><td colspan="5" style="color:var(--muted)">No tests yet.</td></tr>';
+}
+$('clearHist').onclick=()=>{ saveHist([]); renderHist(); };
+
+/* ---------- Test flow ---------- */
+let running=false, abortCtl=null;
+function setStatus(t,err){ el.status.textContent=t; el.status.classList.toggle('err',!!err); }
+function setPhase(label,unit,v,varName){
+  el.phase.textContent=label; el.unit.textContent=unit;
+  el.num.textContent = v==null ? '–' : (unit==='ms'? v.toFixed(0) : fmt(v));
+  if(unit==='Mbps') setDial(v||0,varName); else setDial(0,varName);
+}
+function resetResults(){
+  el.rPing.innerHTML='–<small>ms</small>'; el.rJitter.innerHTML='–<small>ms</small>';
+  el.rDown.innerHTML='–<small>Mbps</small>'; el.rUp.innerHTML='–<small>Mbps</small>';
+}
+function normalizeCustom(u){
+  u=u.trim(); if(!u) return null;
+  if(!/^https?:\/\//.test(u)) u='https://'+u;
+  if(!u.endsWith('/')) u+='/';
+  return {id:'custom',name:'Custom server',where:u,kind:'ls',base:u};
+}
+
+async function chooseServer(signal){
+  const v=el.server.value;
+  if(v==='custom'){
+    const s=normalizeCustom(el.custom.value);
+    if(!s) throw new Error('Enter the URL of a LibreSpeed backend, for example https://host/backend/');
+    return s;
+  }
+  if(v!=='auto') return SERVERS.find(s=>s.id===v);
+  setPhase('Finding server','ms',null,'--ping');
+  setStatus('Checking which server is closest…');
+  const best=await pingAll(signal);
+  if(!best) throw new Error('No test server could be reached. Check your connection or try a custom server.');
+  return best;
+}
+
+async function start(){
+  running=true; abortCtl=new AbortController(); const signal=abortCtl.signal;
+  el.go.textContent='Stop'; resetResults(); setStatus('');
+  let ping=0,down=0,up=0,server;
+  try{
+    server=await chooseServer(signal);
+    setStatus(`Using ${server.name}`);
+
+    setPhase('Ping','ms',null,'--ping');
+    const p=await measurePing(server,12,signal,10000);
+    ping=p.ping; setPhase('Ping','ms',ping,'--ping');
+    el.rPing.innerHTML=`${ping.toFixed(0)}<small>ms</small>`;
+    el.rJitter.innerHTML=`${p.jitter.toFixed(1)}<small>ms</small>`;
+
+    setPhase('Download','Mbps',0,'--down');
+    down=await runDownload(server,signal,v=>setPhase('Download','Mbps',v,'--down'));
+    setPhase('Download','Mbps',down,'--down');
+    el.rDown.innerHTML=`${fmt(down)}<small>Mbps</small>`;
+
+    setPhase('Upload','Mbps',0,'--up');
+    up=await runUpload(server,signal,v=>setPhase('Upload','Mbps',v,'--up'));
+    setPhase('Upload','Mbps',up,'--up');
+    el.rUp.innerHTML=`${fmt(up)}<small>Mbps</small>`;
+
+    setPhase('Done','Mbps',down,'--down');
+    el.phase.textContent='Download speed';
+    setStatus('Test complete.');
+    const h=loadHist(); h.unshift({t:Date.now(),s:server.name,p:ping,d:down,u:up}); saveHist(h); renderHist();
+  }catch(e){
+    if(e&&e.name==='AbortError'){ setPhase('Stopped','Mbps',null,'--down'); setStatus('Test stopped.'); }
+    else{
+      setPhase('Failed','Mbps',null,'--down');
+      let msg=e&&e.message?e.message:String(e);
+      if(/Failed to fetch|NetworkError|Load failed/i.test(msg)) msg='Could not reach the server. It may be blocked by your network, or this page is running somewhere that restricts outside requests. Open the file directly in your browser.';
+      setStatus(msg,true);
+    }
+  }finally{
+    running=false; el.go.textContent='Start test';
+  }
+}
+el.go.onclick=()=>{ if(running) abortCtl.abort(); else start(); };
+
+/* ---------- Init ---------- */
+fillSelect(); renderServers(); renderHist(); setDial(0,'--down'); loadMeta();
+})();
+</script>
+</body>
+</html>
